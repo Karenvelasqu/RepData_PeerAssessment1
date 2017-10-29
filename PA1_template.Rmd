@@ -4,22 +4,122 @@ output:
   html_document:
     keep_md: true
 ---
+```{r setup}
+knitr::opts_chunk$set(echo = TRUE)
+library(mosaic)
+library(data.table)
+rm(list=ls())
+
+```
+
+### Loading and preprocessing the data
+```{r}
+setwd("C:/Users/akger/Google Drive/Anne My Teaching/My MOOC Stuff/Coursera DataScience/ReproducibleResearch/RepData_PeerAssessment1-master")
+df <- fread("activity.csv")
+
+```
+
+### What is mean total number of steps taken per day?
+
+```{r}
+totalsteps <- sum(steps ~ date, data=df)
+histogram(totalsteps, breaks = 20, 
+          xlab = "Total number of steps per day",
+          main = "Histogram of Total steps")
 
 
-## Loading and preprocessing the data
+favstats(totalsteps)
+```
+  
+  As we can see above, the mean number of steps taken per day is 10,766 with a standard deviation of 4269.  The distribution is fairly symmetric, with the median (of 10765) approximately equal to the mean.  
+
+  
+### What is the average daily activity pattern?
+
+```{r}
+df %>% 
+  group_by(interval) %>%  
+  summarise(meansteps = mean(steps, na.rm=TRUE)) %>%
+  ggplot(., aes(interval, meansteps)) + 
+    geom_line() + 
+    xlab("Minutes since midnight (interval)") + 
+    ylab("Average Steps taken") 
+```
+  
+### Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+
+```{r}
+
+df %>% 
+  group_by(interval) %>%  
+  summarise(meansteps = mean(steps, na.rm=TRUE)) %>%
+  arrange(desc(meansteps)) %>%
+  head(.)
+
+```
+  
+  
+Interval number 835 has the most steps, with an average of 206.17 steps. 
 
 
+### Imputing missing values
 
-## What is mean total number of steps taken per day?
+#### How many missing values are there?
+```{r}
+df %>%
+  filter(is.na(steps)) %>%
+  group_by(date) %>%
+  tally(.)
+
+df %>%
+  filter(is.na(steps)) %>%
+  summarise(missing = n())
+```
+There are a total of 2304 missing values for STEP, on the eight days indicated above. 
+
+####Let's use the median number of steps for a given inteval for any missing values
+```{r}
+df2 <- transform(df, steps = ifelse(is.na(steps), 
+              median(df$steps~df$interval, na.rm=TRUE),
+              steps))
+
+mean(df2$steps)
+
+```
+  
+  #### What does this new data look like?
+```{r}
+
+histogram(sum(steps ~ date, data=df2), breaks = 10, 
+          labels = TRUE,
+          ylab = "Frequency (number of intervals)", 
+          xlab = "Total number of steps per day",
+          main = "Histogram of Total steps (with imputation)")
 
 
+favstats(sum(steps~date, data=df2))
+```
+  
+Using the median to impute missing values in the data, we see that the mean total number of steps has decreased from 10766 to 9503.  The median decreased from 10765 to 10395. 
+  
 
-## What is the average daily activity pattern?
+### Are there differences in activity patterns between weekdays and weekends?
+```{r}
+library(chron)
+df2 <- df2 %>% mutate(weekend = factor(is.weekend(date),
+                levels = c(TRUE, FALSE),             
+                labels = c("Weekend","Weekday")))
+
+df2 %>% 
+  group_by(weekend, interval) %>%  
+  summarise(meansteps = mean(steps)) %>%
+  ggplot(., aes(interval, meansteps)) + 
+    geom_line() + 
+    xlab("Minutes since midnight (interval)") + 
+    ylab("Average Steps taken") +
+  facet_wrap(~weekend, ncol=1)
 
 
-
-## Imputing missing values
-
+```
 
 
-## Are there differences in activity patterns between weekdays and weekends?
